@@ -1,5 +1,7 @@
 package reactive.web.client.test;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.concurrent.CountDownLatch;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
@@ -11,12 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import reactive.web.client.Health;
 import reactive.web.client.MyReactiveClient;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -35,11 +34,15 @@ public class MyReactiveClientTest {
 
 	@Before
 	public void initializeClient() {
-
+		ExchangeFilterFunction exchangeFilterFunction =
+				(request, next) -> {
+					log.info("Request: " + request.method() + " " + request.url());
+					return next.exchange(request).doOnNext(r -> log.info(r.toEntity(Health.class).toString()));
+				};
 		myReactiveTestClient = WebTestClient
 				.bindToServer()
 				.baseUrl(url)
-				.filter()
+				.filter(exchangeFilterFunction)
 				.build();
 	}
 
@@ -56,10 +59,8 @@ public class MyReactiveClientTest {
 
 	@Test
 	public void testHealth2() {
-
 		Health expectedStatus = new Health();
 		expectedStatus.setStatus("UP");
-
 		myReactiveTestClient
 				.get()
 				.uri(path)
@@ -69,6 +70,6 @@ public class MyReactiveClientTest {
 				.isOk()
 				.expectBody(Health.class)
 				.isEqualTo(expectedStatus)
-				.consumeWith(r -> assertEquals(r.getResponseBody().getStatus(),"UP"));
+				.consumeWith(r -> assertEquals(r.getResponseBody().getStatus(), "UP"));
 	}
 }
