@@ -16,6 +16,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import reactive.web.client.Health;
 import reactive.web.client.MyReactiveClient;
+import reactor.core.publisher.Mono;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -28,7 +29,7 @@ public class MyReactiveClientTest {
 
 	private WebTestClient myReactiveTestClient;
 
-	private String url = "http://apigatewayj.lnlo.qa.l10.intralot.com";
+	private String url = "http://apigatewayj.lnlo.qa.l10.intralot.1com";
 
 	private String path = "/health";
 
@@ -37,7 +38,10 @@ public class MyReactiveClientTest {
 		ExchangeFilterFunction exchangeFilterFunction =
 				(request, next) -> {
 					log.info("Request: " + request.method() + " " + request.url());
-					return next.exchange(request).doOnNext(r -> log.info(r.toEntity(Health.class).toString()));
+					return next.exchange(request)
+							.doOnNext(r -> log.info("Response status: "+ String.valueOf(r.statusCode().value())))
+							.doOnError(e -> log.info("Error: "+ String.valueOf(e.getMessage())))
+							.onErrorResume(e -> Mono.empty());
 				};
 		myReactiveTestClient = WebTestClient
 				.bindToServer()
